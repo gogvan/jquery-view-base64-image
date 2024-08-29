@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>jQuery UI Draggable</title>
+	<style>
+		#draggable { 
+			padding: 0; 
+			zoom: 1; 
+			cursor: grab;
+			position: relative;
+		}
+		#draggable:active { 
+			cursor: grabbing;
+		}
+		#controls {
+			top: 10px;
+			left: 10px;
+			position: fixed;
+			z-index: 3;
+			padding: 10px;
+			background-color: rgba(255,255,255,.5);
+			display: block;
+		}
+		#draggable img {
+            transform: rotate(0deg);
+            top: 0px;
+		}
+		#controls button, #output_text, select {
+			font-size: 20px; 
+			border: 1px solid #aaa;
+			box-shadow: 0 1px 0 1px rgba(0,0,0,.04); 
+			border-radius: .25em;
+			background-color: #fff;
+			line-height: 1.3;
+			padding: .2em;
+			box-sizing: border-box;
+		}
+		#output_text {
+			top: 40%;
+			left: 30%;
+			position: fixed;
+		}
+		@media print {
+			#draggable {
+				visibility: hidden;
+			}
+		}
+	</style>
+	<script src="https://code.jquery.com/jquery-3.7.1.js"></script>
+	<script src="https://code.jquery.com/ui/1.14.0/jquery-ui.js"></script>
+	<script>
+		document.addEventListener('contextmenu', 
+			event => event.preventDefault()
+		);
+		window.addEventListener("keyup",kPress,false);
+		function kPress(e) { 
+			var c=e.keyCode||e.charCode;
+			if (c==44) {
+				event.preventDefault();
+				alert(c);
+			}
+		}
+		$( function() {
+			$( "#draggable" ).draggable({ scroll: true, zIndex: 1 });
+		});
+		$(document).ready(function() {
+			const for_ajax = ['go_next','go_prev'];
+			const for_zoom = ['zoom_up','zoom_down'];
+			const for_rotate = ['rotate_left','rotate_right'];
+			let count_page = -1;
+			let num_page = -1;
+			let zoom = 1;
+			let img_height = 0;
+			let img_width = 0;
+			let rotate = 0;
+			let view_img = "2:1";
+			
+			$("#view_img").change(function(){
+				view_img = $(this).val();
+				num_page -= 1;
+				$("#go_next").click();
+			});
+			
+			$("#pages").change(function(){
+				num_page = $(this).val();
+				num_page -= 1;
+				$("#go_next").click();
+			});
+			
+			$("button").click(function(e) {
+				e.preventDefault();
+				let val_but = this.id;
+				//$("#output_text").append(val_but);
+				if (for_ajax.includes(val_but)) {
+					$.ajax({
+						method: "POST",
+						url: "http://localhost/getpy",
+						dataType: "html",
+						data: {
+							"name_go": val_but,
+							"num_page": num_page,
+							"view_img": view_img,
+						},
+						success: function(data) {
+							//console.log(data);
+							let pos_count_page = data.indexOf('|');
+							//console.log(position);
+							if (pos_count_page > 0) {
+								count_page = data.slice(0,pos_count_page);
+								let pos_num_page = data.indexOf('|', pos_count_page+1);
+								num_page = data.slice(pos_count_page+1,pos_num_page);
+								let pos_view_img = data.indexOf('|', pos_num_page+1);
+								view_img = data.slice(pos_num_page+1,pos_view_img);
+								//console.log(num_page);
+								let img = new Image();
+								img.src = "data:image/jpeg;base64," + data.slice(pos_view_img+1);
+								$("#draggable").html('');
+								img.onload = function() {
+									//console.log(img.naturalWidth, img.naturalHeight);
+									$("#draggable").append(img);
+									if (img_height == 0) {
+										img_height = $(window).height();
+										//img_width = img.naturalWidth * $(window).height()/img.naturalHeight;
+									}
+									$("#draggable img").attr('height', img_height);
+									//$("#draggable img").attr('width', img_width);
+									$("#draggable img").css("transform", "rotate(" + rotate * 90 + "deg)");
+									$("#pages").empty();
+									let i = 0;
+									while (count_page > i) {
+										let selected = num_page == i ? "selected" : "";
+										$("#pages").append( $("<option value=" + i + " " + selected + ">стр. " + (i + 1) + "</option>"));
+										i++;
+									}
+									$("#view_img option[value='" + view_img + "']").prop('selected', true);
+								};
+							}
+						},
+						error: function(er) {
+							console.log(er);
+						}
+					});
+				}
+				if (for_zoom.includes(val_but)) {
+					if (val_but == 'zoom_up') {
+						zoom = 1.05;
+					} 
+					if (val_but == 'zoom_down') {
+						zoom = 0.95;
+					}
+					//console.log(zoom);
+					img_height *= zoom;
+					img_width *= zoom;
+					//console.log(img_width, img_height);
+					$("#draggable img").attr('height', img_height);
+					//$("#draggable img").attr('width', img_width);
+				}
+				if (for_rotate.includes(val_but)) {
+					if (val_but == 'rotate_left') {
+						rotate -= 1;
+					} 
+					if (val_but == 'rotate_right') {
+						rotate += 1;
+					}
+					$("#draggable img").css("transform", "rotate(" + rotate * 90 + "deg)");
+				}
+			});
+		});
+		$(window).on('load', function(){
+			$("#go_next").click();
+		});
+	</script>
+</head>
+<body oncontextmenu="return false;">
+<div id="containment-wrapper">
+	<div id="controls">
+		<select id="pages"> <!--multiple="multiple"-->
+		  <option>стр. 1</option>
+		</select>&#160;&#160;
+		<button id="go_prev" type="button">&#160;&#8592;&#160;</button>
+		<button id="go_next" type="button">&#160;&#8594;&#160;</button>&#160;&#160;
+		<button id="zoom_up" type="button">&#160;&#160;+&#160;&#160;</button>
+		<button id="zoom_down" type="button">&#160;&#160;-&#160;&#160;</button>&#160;&#160;
+		<button id="rotate_left" type="button">&#160;-90&#160;</button>
+		<button id="rotate_right" type="button">&#160;+90&#160;</button>&#160;&#160;
+		<select id="view_img"> 
+			<option value="1:1">1:1</option>
+			<option value="2:1" selected>2:1</option>
+			<option value="2:2">2:2</option>
+		</select>
+	</div>
+	<div id="draggable"><div id="output_text">Подождите, обработка запроса ...</div></div>
+</div>
+</body>
+</html>
