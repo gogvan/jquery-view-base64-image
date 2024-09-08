@@ -104,18 +104,14 @@
 							"view_img": view_img,
 						},
 						success: function(data) {
-							//console.log(data);
-							let pos_count_page = data.indexOf('|');
-							//console.log(position);
-							if (pos_count_page > 0) {
-								count_page = data.slice(0,pos_count_page);
-								let pos_num_page = data.indexOf('|', pos_count_page+1);
-								num_page = data.slice(pos_count_page+1,pos_num_page);
-								let pos_view_img = data.indexOf('|', pos_num_page+1);
-								view_img = data.slice(pos_num_page+1,pos_view_img);
-								//console.log(num_page);
+							let djson = $.parseJSON(data);
+							count_page = djson.page_count;
+							num_page = djson.num_page;
+							view_img = djson.view_img;
+							img_encoded = djson.img_encoded;
+							if (count_page > 0) {
 								let img = new Image();
-								img.src = "data:image/jpeg;base64," + data.slice(pos_view_img+1);
+								img.src = "data:image/jpeg;base64," + img_encoded;
 								$("#draggable").html('');
 								img.onload = function() {
 									//console.log(img.naturalWidth, img.naturalHeight);
