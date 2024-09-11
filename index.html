@@ -110,28 +110,17 @@
 							view_img = djson.view_img;
 							img_encoded = djson.img_encoded;
 							if (count_page > 0) {
-								let img = new Image();
-								img.src = "data:image/jpeg;base64," + img_encoded;
-								$("#draggable").html('');
-								img.onload = function() {
-									//console.log(img.naturalWidth, img.naturalHeight);
-									$("#draggable").append(img);
-									if (img_height == 0) {
-										img_height = $(window).height();
-										//img_width = img.naturalWidth * $(window).height()/img.naturalHeight;
-									}
-									$("#draggable img").attr('height', img_height);
-									//$("#draggable img").attr('width', img_width);
-									$("#draggable img").css("transform", "rotate(" + rotate * 90 + "deg)");
-									$("#pages").empty();
-									let i = 0;
-									while (count_page > i) {
-										let selected = num_page == i ? "selected" : "";
-										$("#pages").append( $("<option value=" + i + " " + selected + ">стр. " + (i + 1) + "</option>"));
-										i++;
-									}
-									$("#view_img option[value='" + view_img + "']").prop('selected', true);
-								};
+								$("#draggable img").remove();
+								$("#draggable").append($("<img src='data:image/webp;base64," + img_encoded + "' height='" + img_height + "'>"));
+								$("#draggable img").css("transform", "rotate(" + rotate * 90 + "deg)");
+								$("#pages").empty();
+								let i = 0;
+								while (count_page > i) {
+									let selected = num_page == i ? "selected" : "";
+									$("#pages").append( $("<option value=" + i + " " + selected + ">стр. " + (i + 1) + "</option>"));
+									i++;
+								}
+								$("#view_img option[value='" + view_img + "']").prop('selected', true);
 							}
 						},
 						error: function(er) {
