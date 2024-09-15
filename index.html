@@ -15,8 +15,8 @@
 			cursor: grabbing;
 		}
 		#controls {
-			top: 10px;
-			left: 10px;
+			top: 5px;
+			right: 5px;
 			position: fixed;
 			z-index: 3;
 			padding: 10px;
@@ -27,7 +27,7 @@
             		transform: rotate(0deg);
             		top: 0px;
 		}
-		#controls button, #output_text, select {
+		#controls button, #controls select, #controls input, #controls span {
 			font-size: 20px; 
 			border: 1px solid #aaa;
 			box-shadow: 0 1px 0 1px rgba(0,0,0,.04); 
@@ -36,11 +36,6 @@
 			line-height: 1.3;
 			padding: .2em;
 			box-sizing: border-box;
-		}
-		#output_text {
-			top: 40%;
-			left: 30%;
-			position: fixed;
 		}
 		@media print {
 			#draggable {
@@ -72,16 +67,13 @@
 			let count_page = -1;
 			let num_page = -1;
 			let zoom = 1;
-			let img_height = 0;
+			let img_height = $(window).height()*1.5;
 			let img_width = 0;
 			let rotate = 0;
-			let view_img = "2:1";
+			let search_text = "";
+			let count_load = 0;
 			
-			$("#view_img").change(function(){
-				view_img = $(this).val();
-				num_page -= 1;
-				$("#go_next").click();
-			});
+			$("#controls").find("#load_text").hide();
 			
 			$("#pages").change(function(){
 				num_page = $(this).val();
@@ -89,38 +81,43 @@
 				$("#go_next").click();
 			});
 			
-			$("button").click(function(e) {
-				e.preventDefault();
+			$("#searchtext").click(function(){
+				search_text = $("#search_text").val();
+				num_page -= 1;
+				$("#go_next").click();
+			});
+			
+			$("#controls button").on("click", function() {
 				let val_but = this.id;
-				//$("#output_text").append(val_but);
 				if (for_ajax.includes(val_but)) {
 					$.ajax({
 						method: "POST",
-						url: "http://localhost/getpy",
+						url: "/getpy",
 						dataType: "html",
 						data: {
 							"name_go": val_but,
 							"num_page": num_page,
-							"view_img": view_img,
+							"search_text": search_text,
 						},
 						success: function(data) {
 							let djson = $.parseJSON(data);
 							count_page = djson.page_count;
 							num_page = djson.num_page;
-							view_img = djson.view_img;
 							img_encoded = djson.img_encoded;
 							if (count_page > 0) {
 								$("#draggable img").remove();
-								$("#draggable").append($("<img src='data:image/webp;base64," + img_encoded + "' height='" + img_height + "'>"));
+								$("#draggable").append($("<img src='data:image/webp;base64," + img_encoded + "' height='" + img_height + "' />"));
 								$("#draggable img").css("transform", "rotate(" + rotate * 90 + "deg)");
-								$("#pages").empty();
-								let i = 0;
-								while (count_page > i) {
-									let selected = num_page == i ? "selected" : "";
-									$("#pages").append( $("<option value=" + i + " " + selected + ">стр. " + (i + 1) + "</option>"));
-									i++;
+								if (count_load == 0) {
+									$("#pages").empty();
+									let i = 0;
+									while (count_page > i) {
+										$("#pages").append( $("<option value=" + i + ">стр. " + (i + 1) + "</option>"));
+										i++;
+									}
 								}
-								$("#view_img option[value='" + view_img + "']").prop('selected', true);
+								count_load += 1;
+								$("#pages option[value='" + num_page + "']").prop('selected', true);
 							}
 						},
 						error: function(er) {
@@ -137,10 +134,7 @@
 					}
 					//console.log(zoom);
 					img_height *= zoom;
-					img_width *= zoom;
-					//console.log(img_width, img_height);
-					$("#draggable img").attr('height', img_height);
-					//$("#draggable img").attr('width', img_width);
+					$("#draggable img").css('height', img_height);
 				}
 				if (for_rotate.includes(val_but)) {
 					if (val_but == 'rotate_left') {
@@ -150,6 +144,46 @@
 						rotate += 1;
 					}
 					$("#draggable img").css("transform", "rotate(" + rotate * 90 + "deg)");
+				}
+				if (val_but == 'load_all') {
+					count_load = 0;
+					img_height = $(window).height()*0.5;
+					$("#load_text").html("Загрузка 0%").show();
+					$("#draggable img").remove();
+					$("select#pages option").each(function(index, value) {
+						$("#draggable").append("<img src='' id='page_" + index + "' />");
+						$.ajax({
+							method: "POST",
+							url: "/getpy",
+							dataType: "html",
+							data: {
+								"name_go": "go_next",
+								"num_page": index-1,
+								"search_text": search_text,
+							},
+							success: function(data) {
+								let djson = $.parseJSON(data);
+								num_page = djson.num_page;
+								img_encoded = djson.img_encoded;
+								if (num_page >= 0) {
+									$("#draggable").find("#page_" + index).attr("src", "data:image/webp;base64," + img_encoded);
+									$("#draggable").find("#page_" + index).css("height", img_height);
+									count_load += 1;
+									$("#load_text").html(" Загрузка " + Math.round(100 * (count_load/(count_page - 1))) + "% ");
+									if (count_load == count_page - 1) {
+										$("#load_text").hide();
+										$("#pages option[value='" + (count_page - 1) + "']").prop('selected', true);
+										$("#draggable img").css("border", "1px solid #aaa");
+										//img_height = $(window).height()*0.5;
+										//$("#draggable img").css('height', img_height);
+									}
+								}
+							},
+							error: function(er) {
+								console.log(er);
+							}
+						});
+					});
 				}
 			});
 		});
@@ -161,7 +195,9 @@
 <body oncontextmenu="return false;">
 <div id="containment-wrapper">
 	<div id="controls">
-		<select id="pages"> <!--multiple="multiple"-->
+		<span id="load_text">Подождите, обработка запроса ...</span>&#160;&#160;
+		<button id="load_all" type="button">&#160;Все стр.&#160;</button>
+		<select id="pages">
 		  <option>стр. 1</option>
 		</select>&#160;&#160;
 		<button id="go_prev" type="button">&#160;&#8592;&#160;</button>
@@ -170,13 +206,10 @@
 		<button id="zoom_down" type="button">&#160;&#160;-&#160;&#160;</button>&#160;&#160;
 		<button id="rotate_left" type="button">&#160;-90&#160;</button>
 		<button id="rotate_right" type="button">&#160;+90&#160;</button>&#160;&#160;
-		<select id="view_img"> 
-			<option value="1:1">1:1</option>
-			<option value="2:1" selected>2:1</option>
-			<option value="2:2">2:2</option>
-		</select>
+		<input id="search_text" type="text" size="10" value="" placeholder="Поиск">
+		<button id="searchtext" type="button">&#160;Поиск&#160;</button>&#160;&#160;
 	</div>
-	<div id="draggable"><div id="output_text">Подождите, обработка запроса ...</div></div>
+	<div id="draggable" align="center"></div>
 </div>
 </body>
 </html>
